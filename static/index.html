@@ -170,6 +170,12 @@
 
   <p class="panel-label">Try it</p>
 
+  <div style="margin-bottom: 20px;">
+    <button type="button" onclick="loadExample('ACC1003', 'My broadband installation was supposed to happen yesterday and nobody came.')" style="margin-top:0; margin-right:8px; background:#fff; color:var(--ink); border:1px solid var(--border); font-size:13px; padding:8px 14px;">Escalation example</button>
+    <button type="button" onclick="loadExample('ACC1001', 'My internet has been slow all day')" style="margin-top:0; margin-right:8px; background:#fff; color:var(--ink); border:1px solid var(--border); font-size:13px; padding:8px 14px;">Routine example</button>
+    <button type="button" onclick="loadExample('ACC1001', 'I want to upgrade my plan, also is my last bill correct?')" style="margin-top:0; background:#fff; color:var(--ink); border:1px solid var(--border); font-size:13px; padding:8px 14px;">Multi-issue example</button>
+  </div>
+
   <label for="customer_id">Customer account</label>
   <select id="customer_id">
     <option value="ACC1001">ACC1001 &mdash; Priya Menon, clean record</option>
@@ -195,6 +201,12 @@
 </div>
 
 <script>
+function loadExample(customerId, message) {
+  document.getElementById('customer_id').value = customerId;
+  document.getElementById('conversation').value = message;
+  document.getElementById('result').style.display = 'none';
+}
+
 async function submitTicket() {
   const conversation = document.getElementById('conversation').value;
   const customer_id = document.getElementById('customer_id').value;

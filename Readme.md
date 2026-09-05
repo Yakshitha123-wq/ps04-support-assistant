@@ -54,6 +54,10 @@ All three decision branches, the null case, and several edge cases were tested a
 
 All requests completed well within the 60-second per-request limit. The slowest real case (a 3-issue message triggering 3 embedding calls) took under 6 seconds, and the empty-conversation fail-safe returns in under 0.03 seconds since it never reaches the API.
 
+# Fresh-clone verification
+
+As instructed, the repository was cloned into a completely separate folder and run with only the two required commands (pip install -r requirements.txt, then python app.py), with a fresh .env containing only the API key. The app started in 1.4 seconds - confirming the precomputed embeddings cache loads correctly rather than recomputing 12 embeddings live. Three spot-check requests (a routine case, an escalation, and the two-issue citation case) were re-run against this fresh clone and matched the results from the original development copy exactly, including timing (2.3-4.1 seconds per request).
+
 # A known limit
 
 Retrieval caps at 5 total articles per request (2 per detected issue segment, deduplicated). This comfortably covers realistic support messages (1-4 issues), but a message with many more distinct issues than that could exceed the cap and leave one issue without grounding material. This was a deliberate tradeoff to keep prompt size and latency predictable rather than unbounded.
@@ -61,6 +65,16 @@ Retrieval caps at 5 total articles per request (2 per detected issue segment, de
 # A judgment call worth noting
 
 Multi-issue messages (e.g. "I want to upgrade my plan, also is my last bill correct?") initially caused the system to escalate both issues, even when both were fully answerable from the account data, and only cite one of the two articles actually used. Two fixes were made: the system prompt now only escalates a multi-issue message when at least one issue genuinely requires human judgment, and it lists every article used in the citation field rather than just one. Retrieval itself was also changed from embedding the whole message as a single vector to splitting it into segments and retrieving per segment, so that each issue in a compound message gets a fair chance at surfacing its own relevant article. This reflects the "the hard cases, the edge cases" judgement criterion: recognizing when a routine-looking complexity is not actually complex, and making sure the grounding mechanism keeps up with that judgement.
+
+# Three more bugs found by testing the same message across every account
+
+Running each preset scenario against all five test accounts (not just the one it was designed for) surfaced three real, reproducible gaps that a narrower test pass would have missed:
+
+1. Decision mislabeling: for a small number of accounts, a clarifying question was returned as decision "respond" instead of "ask_for_info", even though the content was a question, not a resolution. Fixed at two layers: the system prompt now explicitly forbids putting a question inside an "answer" field, and the code independently reclassifies any "respond" whose answer ends in a question mark, so the bug is caught even if the model ignores the instruction.
+2. Unverified claims stated as fact: when an account record had no data related to the customer's claim (e.g. a customer without any recorded broadband service claiming an installation was missed), the "established" field sometimes restated the claim as if it were confirmed rather than flagging it as unverified, and one case (a customer whose broadband was already installed 6 months ago) missed a genuine contradiction entirely. Fixed by requiring the "established" field to explicitly distinguish "customer claims X" from "record confirms X", and to state contradictions explicitly rather than passing them through silently.
+3. Service-type mismatch: a mobile-only account was asked a standard wifi troubleshooting question without the system noting that the account has no broadband service at all. Fixed by requiring an explicit check of whether the account record actually has the type of service being asked about.
+
+All three fixes were re-verified by rerunning the full 12-scenario suite plus the specific account/message combinations that originally exposed each bug.
 
 # Demo video
 

@@ -32,7 +32,11 @@ You are given three things for every request:
 
 Decide ONE of three outcomes:
 
-1. RESPOND - if the request is routine and a support article clearly covers it.
+1. RESPOND - if the request is routine and a support article clearly covers it,
+   AND you have everything you need to give an actual resolution (not just a
+   question). If your answer would just be a question back to the customer,
+   that is NOT a respond - use ASK_FOR_INFO instead. Never put a clarifying
+   question inside an "answer" field.
    Draft a resolution grounded in that article. Always cite which article you used.
    If you draw on more than one article (e.g. resolving multiple issues in one
    message), list every article you actually used in the citation field, separated
@@ -40,8 +44,10 @@ Decide ONE of three outcomes:
    Never answer from anything other than the provided article text.
 
 2. ASK_FOR_INFO - if you cannot proceed without something specific from the customer
-   (e.g. an account number, a date, confirmation of an issue). Ask for exactly what
-   you need - nothing vague.
+   (e.g. an account number, a date, confirmation of an issue, or details an article
+   says to ask for before resolving - e.g. "ask whether it happens on all devices").
+   Ask for exactly what you need - nothing vague. This is the correct decision
+   whenever your response is itself a question, even if it cites an article.
 
 3. ESCALATE - if the case is complex, uncertain, or not covered by any article.
    Hand over a concise summary so the human agent does not make the customer repeat
@@ -66,6 +72,20 @@ EDGE CASES you must handle:
   a plan or charge that doesn't match what's on file), do not resolve based on
   the customer's claim alone. Use ASK_FOR_INFO to clarify, or ESCALATE if the
   discrepancy itself is the issue.
+- When writing the "established" field, be precise about what is actually confirmed
+  by the account record versus what is only the customer's claim. If the account
+  record has no data relevant to the claim (e.g. no installation ticket at all),
+  say so explicitly ("customer claims X; no related record found") rather than
+  restating the claim as if it were a confirmed fact. If the account record
+  contradicts the claim, state the contradiction explicitly.
+- Check whether the account record actually has the type of service being asked
+  about (e.g. broadband vs mobile). If the customer asks about a service type
+  their account record does not show (e.g. a mobile-only account asked about
+  wifi speed), explicitly note this mismatch rather than proceeding as if the
+  service exists.
+- If no account record is found for the given customer, the "established" or
+  "issue" field must explicitly state that no account record exists for that
+  customer ID - never omit this or imply the account was checked normally.
 - If the account record shows an existing open or recent ticket relevant to this
   request, factor that history into your decision - a second occurrence of an
   already-"resolved" issue is a signal to escalate, not repeat the same fix.
@@ -226,6 +246,14 @@ def parse_agent_response(raw_text: str) -> dict:
                 "already_tried": "N/A",
             },
         }
+
+    if data.get("decision") == "respond":
+        answer_text = data.get("answer", "").strip()
+        if answer_text.endswith("?"):
+            return {
+                "decision": "ask_for_info",
+                "question": answer_text,
+            }
 
     return data
 
