@@ -39,20 +39,24 @@ All three decision branches, the null case, and several edge cases were tested a
 
 | # | Scenario | Account | Expected | Result | Time (s) |
 |---|---|---|---|---|---|
-| 1 | Installation delay, open ticket exists | ACC1003 | escalate | Escalated, cited ticket #4550 | 4.02 |
-| 2 | Routine slow internet | ACC1001 | respond | Responded, cited Article C2 | 1.61 |
-| 3 | Thank-you message (null case) | ACC1001 | respond, no citation | Responded, citation: null | 2.28 |
-| 4 | Repeat billing complaint | ACC1002 | escalate | Escalated, cited tickets #4471 and #4602 | 2.14-2.46 |
-| 5 | Ambiguous SIM issue | ACC1004 | ask_for_info | Asked to clarify, did not guess | 2.04 |
-| 6 | Mobile data limit | ACC1004 | respond | Responded, cited Article P2, correct plan limit | 4.55 |
-| 7 | Nonexistent customer ID | ACC9999 | escalate | Escalated, explained no record found | 2.04 |
-| 8 | Empty conversation | any | escalate (server-side) | Escalated, caught before any API call | 0.02 |
-| 9 | Two-issue message, both resolvable | ACC1001 | respond, both cited | Responded, cited both Article P1 and B1 | 2.46-4.83 |
-| 10 | Three-issue message with a contradiction | ACC1001 | escalate | Escalated, correctly flagged the billing contradiction | 2.88-5.44 |
-| 11 | Multi-issue message and repeat ticket history | ACC1002 | escalate | Escalated, combined both signals correctly | 4.58 |
-| 12 | Broadband-only account | ACC1005 | respond or ask_for_info | Asked for clarification per Article C2's own instructions | 2.04 |
+| 1 | Installation delay, open ticket exists | ACC1003 | escalate | ✅ Escalated, cited ticket #4550 | 4.02 |
+| 2 | Routine slow internet | ACC1001 | respond | ✅ Responded, cited Article C2 | 1.61 |
+| 3 | Thank-you message (null case) | ACC1001 | respond, no citation | ✅ Responded, citation: null | 2.28 |
+| 4 | Repeat billing complaint | ACC1002 | escalate | ✅ Escalated, cited tickets #4471 and #4602 | 2.14-2.46 |
+| 5 | Ambiguous SIM issue | ACC1004 | ask_for_info | ✅ Asked to clarify, did not guess | 2.04 |
+| 6 | Mobile data limit | ACC1004 | respond | ✅ Responded, cited Article P2, correct plan limit | 4.55 |
+| 7 | Nonexistent customer ID | ACC9999 | escalate | ✅ Escalated, explained no record found | 2.04 |
+| 8 | Empty conversation | any | escalate (server-side) | ✅ Escalated, caught before any API call | 0.02 |
+| 9 | Two-issue message, both resolvable | ACC1001 | respond, both cited | ✅ Responded, cited both Article P1 and B1 | 2.46-4.83 |
+| 10 | Three-issue message with a contradiction | ACC1001 | escalate | ✅ Escalated, correctly flagged the billing contradiction | 2.88-5.44 |
+| 11 | Multi-issue message and repeat ticket history | ACC1002 | escalate | ✅ Escalated, combined both signals correctly | 4.58 |
+| 12 | Broadband-only account | ACC1005 | respond or ask_for_info | ✅ Asked for clarification per Article C2's own instructions | 2.04 |
 
 All requests completed well within the 60-second per-request limit. The slowest real case (a 3-issue message triggering 3 embedding calls) took under 6 seconds, and the empty-conversation fail-safe returns in under 0.03 seconds since it never reaches the API.
+
+# A known limit
+
+Retrieval caps at 5 total articles per request (2 per detected issue segment, deduplicated). This comfortably covers realistic support messages (1-4 issues), but a message with many more distinct issues than that could exceed the cap and leave one issue without grounding material. This was a deliberate tradeoff to keep prompt size and latency predictable rather than unbounded.
 
 # A judgment call worth noting
 
