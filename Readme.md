@@ -78,4 +78,4 @@ All three fixes were re-verified by rerunning the full 12-scenario suite plus th
 
 # Demo video
 
-[link to be added]
+https://www.loom.com/share/09e1a21773cb4c84b58144565794719a
