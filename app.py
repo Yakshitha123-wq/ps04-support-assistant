@@ -1,9 +1,12 @@
 import json
 import os
+import re
 
+import numpy as np
 from dotenv import load_dotenv
 from google import genai
 from fastapi import FastAPI
+from fastapi.responses import HTMLResponse
 from pydantic import BaseModel
 import uvicorn
 
@@ -18,7 +21,9 @@ if not API_KEY:
 
 client = genai.Client(api_key=API_KEY)
 
-SYSTEM_PROMPT = """You are a resolution assistant for a broadband and mobile provider's support desk.
+SYSTEM_PROMPT = """TRACK_ID=PS04
+
+You are a resolution assistant for a broadband and mobile provider's support desk.
 
 You are given three things for every request:
 1. The conversation so far (what the customer has said)
@@ -29,6 +34,9 @@ Decide ONE of three outcomes:
 
 1. RESPOND - if the request is routine and a support article clearly covers it.
    Draft a resolution grounded in that article. Always cite which article you used.
+   If you draw on more than one article (e.g. resolving multiple issues in one
+   message), list every article you actually used in the citation field, separated
+   by commas - never cite only one when more than one was used.
    Never answer from anything other than the provided article text.
 
 2. ASK_FOR_INFO - if you cannot proceed without something specific from the customer
@@ -48,9 +56,12 @@ EDGE CASES you must handle:
   small talk, confirmation that something is already resolved), use RESPOND with
   a brief acknowledgment. Do not force a citation, and do not escalate something
   that requires no action.
-- If the message raises more than one issue, address the clearest one and note
-  in your answer (if responding) or handover_summary (if escalating) that other
-  points were raised too - do not silently drop them.
+- If the message raises more than one issue, evaluate each one individually. If every
+  issue raised can be resolved directly from the account record and support articles,
+  use RESPOND and address each one clearly in your answer - do not escalate just
+  because multiple things were mentioned. Only escalate the whole message if at least
+  one of the issues genuinely requires human judgment, is ambiguous, or isn't covered
+  by any article.
 - If what the customer describes contradicts the account record (e.g. they claim
   a plan or charge that doesn't match what's on file), do not resolve based on
   the customer's claim alone. Use ASK_FOR_INFO to clarify, or ESCALATE if the
@@ -76,8 +87,95 @@ def load_text_file(path: str) -> str:
         return f.read()
 
 
-SUPPORT_ARTICLES = load_text_file(os.path.join("data", "support_articles.md"))
+def parse_articles(raw_text: str) -> list:
+    articles = []
+    parts = re.split(r"(?=### Article )", raw_text)
+    for part in parts:
+        part = part.strip()
+        if not part.startswith("### Article"):
+            continue
+        lines = part.split("\n")
+        title_line = lines[0].replace("### ", "").strip()
+        body = "\n".join(lines[1:]).strip()
+        articles.append({"title": title_line, "text": body})
+    return articles
+
+
+def cosine_similarity(a: list, b: list) -> float:
+    a, b = np.array(a), np.array(b)
+    denom = np.linalg.norm(a) * np.linalg.norm(b)
+    if denom == 0:
+        return 0.0
+    return float(np.dot(a, b) / denom)
+
+
+def embed_text(text: str) -> list:
+    result = client.models.embed_content(
+        model="gemini-embedding-001",
+        contents=text,
+    )
+    return result.embeddings[0].values
+
+
+SUPPORT_ARTICLES_RAW = load_text_file(os.path.join("data", "support_articles.md"))
+ARTICLES = parse_articles(SUPPORT_ARTICLES_RAW)
 ALL_ACCOUNT_RECORDS = load_text_file(os.path.join("data", "account_records.md"))
+
+EMBEDDINGS_PATH = os.path.join("data", "article_embeddings.json")
+
+
+def load_or_build_article_embeddings() -> list:
+    if os.path.exists(EMBEDDINGS_PATH):
+        with open(EMBEDDINGS_PATH, "r", encoding="utf-8") as f:
+            cached = json.load(f)
+        if len(cached) == len(ARTICLES):
+            return [item["embedding"] for item in cached]
+
+    embeddings = []
+    for article in ARTICLES:
+        embeddings.append(embed_text(article["text"]))
+
+    with open(EMBEDDINGS_PATH, "w", encoding="utf-8") as f:
+        json.dump(
+            [{"title": a["title"], "embedding": e} for a, e in zip(ARTICLES, embeddings)],
+            f,
+        )
+    return embeddings
+
+
+ARTICLE_EMBEDDINGS = load_or_build_article_embeddings()
+
+
+def split_into_segments(conversation: str) -> list:
+    parts = re.split(r"(?:,?\s+also\s+|;|\n)", conversation, flags=re.IGNORECASE)
+    segments = []
+    for part in parts:
+        subparts = re.split(r"(?<=[.?!])\s+", part.strip())
+        segments.extend([s.strip() for s in subparts if len(s.strip()) > 5])
+    return segments if segments else [conversation]
+
+
+def retrieve_relevant_articles(conversation: str, top_k_per_segment: int = 2, max_total: int = 5) -> str:
+    segments = split_into_segments(conversation)
+
+    seen_titles = set()
+    collected = []
+
+    for segment in segments:
+        segment_embedding = embed_text(segment)
+        scored = []
+        for article, embedding in zip(ARTICLES, ARTICLE_EMBEDDINGS):
+            score = cosine_similarity(segment_embedding, embedding)
+            scored.append((score, article))
+        scored.sort(key=lambda x: x[0], reverse=True)
+
+        for score, article in scored[:top_k_per_segment]:
+            if article["title"] not in seen_titles:
+                seen_titles.add(article["title"])
+                collected.append(article)
+
+    collected = collected[:max_total]
+    return "\n\n".join(f"{a['title']}\n{a['text']}" for a in collected)
 
 
 def get_account_record(customer_id: str) -> str:
@@ -90,9 +188,10 @@ def get_account_record(customer_id: str) -> str:
 
 def call_agent(conversation: str, customer_id: str) -> str:
     account_record = get_account_record(customer_id)
+    relevant_articles = retrieve_relevant_articles(conversation)
     prompt = (
         f"Account record:\n{account_record}\n\n"
-        f"Support articles:\n{SUPPORT_ARTICLES}\n\n"
+        f"Most relevant support articles for this conversation:\n{relevant_articles}\n\n"
         f"Conversation so far:\n{conversation}"
     )
 
@@ -139,7 +238,13 @@ class TicketRequest(BaseModel):
     customer_id: str
 
 
-@app.get("/")
+@app.get("/", response_class=HTMLResponse)
+def serve_frontend():
+    with open(os.path.join("static", "index.html"), "r", encoding="utf-8") as f:
+        return f.read()
+
+
+@app.get("/health")
 def health_check():
     return {"status": "ok"}
 

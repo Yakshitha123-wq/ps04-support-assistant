@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>NetConnect Resolution Assistant</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600&family=Inter:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #F7F7F4;
+    --ink: #17181A;
+    --muted: #5F5E5A;
+    --border: #DEDCD3;
+    --respond: #0F6E56;
+    --respond-bg: #E1F5EE;
+    --ask: #92600A;
+    --ask-bg: #FAEEDA;
+    --escalate: #A32D2D;
+    --escalate-bg: #FCEBEB;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: var(--bg);
+    color: var(--ink);
+    font-family: 'Inter', sans-serif;
+    margin: 0;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 720px; margin: 0 auto; padding: 64px 24px 80px; }
+  h1, h2 {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+  }
+  h1 { font-size: 30px; margin: 0 0 8px; }
+  h2 { font-size: 17px; margin: 0 0 4px; }
+  .tag {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    color: var(--muted);
+    margin: 0 0 20px;
+  }
+  .motto {
+    font-size: 16px;
+    color: var(--muted);
+    max-width: 52ch;
+    margin: 0 0 48px;
+  }
+  .outcomes {
+    border-top: 1px solid var(--border);
+    margin-bottom: 56px;
+  }
+  .outcome {
+    display: flex;
+    gap: 14px;
+    padding: 20px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    margin-top: 6px;
+    flex-shrink: 0;
+  }
+  .dot.respond { background: var(--respond); }
+  .dot.ask { background: var(--ask); }
+  .dot.escalate { background: var(--escalate); }
+  .outcome p { margin: 0; font-size: 14px; color: var(--muted); max-width: 50ch; }
+
+  .panel-label {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    color: var(--muted);
+    margin: 0 0 16px;
+  }
+  label {
+    display: block;
+    font-size: 13px;
+    color: var(--muted);
+    margin: 20px 0 6px;
+  }
+  select, textarea {
+    width: 100%;
+    font-family: 'Inter', sans-serif;
+    font-size: 14px;
+    padding: 10px 12px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: #fff;
+    color: var(--ink);
+  }
+  select:focus, textarea:focus { outline: none; border-color: var(--ink); }
+  textarea { height: 76px; resize: vertical; }
+
+  button {
+    margin-top: 24px;
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    padding: 11px 22px;
+    background: var(--ink);
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+  }
+  button:hover { opacity: 0.88; }
+  button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  #loading { display: none; margin-top: 20px; font-size: 13px; color: var(--muted); }
+
+  #result {
+    display: none;
+    margin-top: 28px;
+    padding: 18px 20px;
+    border-left: 3px solid var(--border);
+    background: #fff;
+  }
+  #result.decision-respond { border-color: var(--respond); }
+  #result.decision-ask_for_info { border-color: var(--ask); }
+  #result.decision-escalate { border-color: var(--escalate); }
+
+  .result-decision {
+    font-family: 'Space Grotesk', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: lowercase;
+    margin: 0 0 10px;
+  }
+  .decision-respond .result-decision { color: var(--respond); }
+  .decision-ask_for_info .result-decision { color: var(--ask); }
+  .decision-escalate .result-decision { color: var(--escalate); }
+
+  .result-field { margin: 0 0 8px; font-size: 14px; }
+  .result-field b { font-weight: 500; color: var(--muted); font-size: 12px; display: block; margin-bottom: 2px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <p class="tag">NetConnect &middot; support resolution assistant</p>
+  <h1>Never make the customer repeat themselves</h1>
+  <p class="motto">Resolve what's routine, ask for what's missing, and hand off what's complex &mdash; with full context every time.</p>
+
+  <div class="outcomes">
+    <div class="outcome">
+      <div class="dot respond"></div>
+      <div>
+        <h2>Respond</h2>
+        <p>Drafts a resolution grounded in a matching support article, with a citation, ready for an agent to approve.</p>
+      </div>
+    </div>
+    <div class="outcome">
+      <div class="dot ask"></div>
+      <div>
+        <h2>Ask for info</h2>
+        <p>Asks for exactly what's missing when it can't proceed &mdash; never guesses.</p>
+      </div>
+    </div>
+    <div class="outcome">
+      <div class="dot escalate"></div>
+      <div>
+        <h2>Escalate</h2>
+        <p>Hands off complex or uncertain cases with the issue, what's established, and what's already been tried.</p>
+      </div>
+    </div>
+  </div>
+
+  <p class="panel-label">Try it</p>
+
+  <label for="customer_id">Customer account</label>
+  <select id="customer_id">
+    <option value="ACC1001">ACC1001 &mdash; Priya Menon, clean record</option>
+    <option value="ACC1002">ACC1002 &mdash; Arjun Reddy, repeat billing complaint</option>
+    <option value="ACC1003">ACC1003 &mdash; Fatima Sheikh, overdue installation</option>
+    <option value="ACC1004">ACC1004 &mdash; Vikram Nair, mobile-only prepaid</option>
+    <option value="ACC1005">ACC1005 &mdash; Sneha Kulkarni, broadband-only</option>
+    <option value="ACC9999">ACC9999 &mdash; unknown customer (edge case)</option>
+  </select>
+
+  <label for="conversation">Customer message</label>
+  <textarea id="conversation" placeholder="My internet has been slow all day"></textarea>
+
+  <button id="submitBtn" onclick="submitTicket()">Submit</button>
+
+  <div id="loading">Contacting assistant&hellip;</div>
+
+  <div id="result">
+    <p class="result-decision" id="resultDecision"></p>
+    <div id="resultBody"></div>
+  </div>
+
+</div>
+
+<script>
+async function submitTicket() {
+  const conversation = document.getElementById('conversation').value;
+  const customer_id = document.getElementById('customer_id').value;
+  const resultDiv = document.getElementById('result');
+  const loadingDiv = document.getElementById('loading');
+  const btn = document.getElementById('submitBtn');
+
+  if (!conversation.trim()) {
+    alert('Enter a customer message first.');
+    return;
+  }
+
+  resultDiv.style.display = 'none';
+  loadingDiv.style.display = 'block';
+  btn.disabled = true;
+
+  try {
+    const response = await fetch('/handle_ticket', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ conversation, customer_id })
+    });
+    const data = await response.json();
+
+    resultDiv.className = 'decision-' + data.decision;
+    document.getElementById('resultDecision').textContent = data.decision.replace(/_/g, ' ');
+
+    let bodyHtml = '';
+    if (data.decision === 'respond') {
+      bodyHtml += `<p class="result-field"><b>Answer</b>${data.answer}</p>`;
+      bodyHtml += `<p class="result-field"><b>Citation</b>${data.citation || 'none'}</p>`;
+    } else if (data.decision === 'ask_for_info') {
+      bodyHtml += `<p class="result-field"><b>Question</b>${data.question}</p>`;
+    } else if (data.decision === 'escalate') {
+      const h = data.handover_summary || {};
+      bodyHtml += `<p class="result-field"><b>Issue</b>${h.issue || ''}</p>`;
+      bodyHtml += `<p class="result-field"><b>Established</b>${h.established || ''}</p>`;
+      bodyHtml += `<p class="result-field"><b>Already tried</b>${h.already_tried || ''}</p>`;
+    }
+    document.getElementById('resultBody').innerHTML = bodyHtml;
+    resultDiv.style.display = 'block';
+  } catch (err) {
+    resultDiv.className = '';
+    document.getElementById('resultDecision').textContent = 'error';
+    document.getElementById('resultBody').innerHTML = '<p class="result-field">' + err.message + '</p>';
+    resultDiv.style.display = 'block';
+  } finally {
+    loadingDiv.style.display = 'none';
+    btn.disabled = false;
+  }
+}
+</script>
+</body>
+</html>

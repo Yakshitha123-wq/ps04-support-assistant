@@ -33,3 +33,10 @@ Billing status: Current recharge active, valid until end of cycle
 Recent tickets (last 90 days): None
 Notes: Mobile-only customer, no wifi/broadband service on this account. New SIM
 activated 10 days ago, no reported issues since.
+
+## Customer: ACC1005 - Sneha Kulkarni
+Plan: Fiber 300 Mbps - Rs 1299/month (broadband-only, no mobile service on this account)
+Billing status: Current bill Rs 1299, paid on time
+Recent tickets (last 90 days): None
+Notes: Broadband-only customer, no mobile line on this account. Router installed
+6 months ago, no reported issues.
